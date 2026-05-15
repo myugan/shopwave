@@ -6,20 +6,18 @@ Manifests deploy the three application services into the **`production`** namesp
 
 ```
 k8s/
-├── namespace.yaml
-├── kustomization.yaml
-├── secrets/
-│   ├── sendgrid-api-key.yaml    # mounted into workflow send-invoice step
-│   └── argo-api-token.yaml      # order-service → Argo Server API
-├── rbac/
-│   ├── argo-workflow-sa.yaml           # SA + Role for workflow pods (secrets:get)
-│   └── order-service-argo-submit.yaml  # SA + Role for order-service → create workflows
-├── order-service/
-├── shopwave-web/
-├── notification-service/
-└── argo/
-    ├── workflow-order-placed.yaml       # reference Workflow CR (same as workflow.py)
-    └── workflow-webhook-configmap.yaml  # webhook URL notes
+├── kustomization.yaml              # default: GHCR images (kubectl apply -k k8s/)
+├── base/                           # manifests
+│   ├── namespace.yaml
+│   ├── secrets/
+│   ├── rbac/
+│   ├── order-service/
+│   ├── shopwave-web/
+│   ├── notification-service/
+│   └── argo/
+└── overlays/
+    ├── local/                      # Minikube local docker tags
+    └── ghcr-private/               # imagePullSecrets for private GHCR
 ```
 
 ## Deploy on Minikube (local)
@@ -39,35 +37,37 @@ GitHub Actions workflow [`.github/workflows/publish-ghcr.yml`](../.github/workfl
 1. Enable **Settings → Actions → Workflow permissions → Read and write**.
 2. Push to `main` or run the workflow manually (**Actions → Publish to GHCR → Run workflow**).
 3. Set **Packages** visibility (public repo → link package to repo for public pulls).
-4. Update `image:` in `k8s/*/deployment.yaml` (or a Kustomize overlay) to the `ghcr.io/...` URLs.
-5. **Private packages:** create `kubectl create secret docker-registry ghcr-login --docker-server=ghcr.io ...` and set `imagePullSecrets` on deployments.
+4. Edit **`k8s/kustomization.yaml`** — set each `images[].newName` to `ghcr.io/YOUR_GITHUB_USER/...` (lowercase).
+5. Deploy: `kubectl apply -k k8s/`
+6. **Private packages:** `kubectl apply -k k8s/overlays/ghcr-private` after creating secret `ghcr-login` (see overlay file).
 
 ```bash
-echo "$GITHUB_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+echo "$GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 ```
+
+Deployments default to `ghcr.io/shopwave/...:latest` with `imagePullPolicy: Always`.
 
 ## Prerequisites
 
 1. Kubernetes cluster (kind, minikube, EKS, etc.)
-2. **Argo Workflows** installed with a reachable API server  
-   Default in manifests: `argo-server.argo.svc.cluster.local:2746`
-3. Container images built and available to the cluster:
-
-```bash
-docker compose build
-# kind example:
-kind load docker-image shopwave-order-service:latest
-kind load docker-image shopwave-shopwave-web:latest
-kind load docker-image shopwave-notification-service:latest
-```
-
-4. **Argo Workflows** installed with API reachable from the cluster (see [MINIKUBE.md §4](MINIKUBE.md#4-install-argo-workflows) — use `--auth-mode=client` for ServiceAccount tokens).
-5. `secrets/sendgrid-api-key.yaml` can stay as the workshop placeholder unless you need a real key.
+2. **Argo Workflows** API reachable ([MINIKUBE.md §4](MINIKUBE.md#4-install-argo-workflows), `--auth-mode=client`).
+3. **Images** — GHCR (`kubectl apply -k k8s/`) or local Minikube (`kubectl apply -k k8s/overlays/local`).
+4. `secrets/sendgrid-api-key.yaml` — workshop placeholder is fine.
 
 ## Deploy
 
+**GHCR:**
+
 ```bash
+# Edit k8s/kustomization.yaml — ghcr.io/shopwave → ghcr.io/YOUR_GITHUB_USER
 kubectl apply -k k8s/
+kubectl -n production get pods
+```
+
+**Minikube local build:**
+
+```bash
+kubectl apply -k k8s/overlays/local
 kubectl -n production get pods
 ```
 
@@ -83,7 +83,7 @@ kubectl -n production port-forward svc/notification-service 3001:3000
 
 ## Create `ARGO_TOKEN`
 
-ShopWave does **not** generate this token in code. After `kubectl apply -k k8s/`, you mint a Kubernetes JWT for ServiceAccount **`order-service-argo`** and store it in Secret **`argo-api-token`**. The order-service pod reads it as env **`ARGO_TOKEN`** and sends it as `Authorization: Bearer …` to the Argo Server API.
+ShopWave does **not** generate this token in code. After `kubectl apply -k k8s/` (or `k8s/overlays/local`), you mint a Kubernetes JWT for ServiceAccount **`order-service-argo`** and store it in Secret **`argo-api-token`**. The order-service pod reads it as env **`ARGO_TOKEN`** and sends it as `Authorization: Bearer …` to the Argo Server API.
 
 ### How it fits together
 
@@ -105,8 +105,8 @@ order-service → POST /api/v1/workflows/production
 
 | Artifact | File / command | Purpose |
 |----------|----------------|---------|
-| RBAC | `rbac/order-service-argo-submit.yaml` | SA `order-service-argo` may **create** `workflows` in `production` |
-| Placeholder secret | `secrets/argo-api-token.yaml` | Applied as `Bearer REPLACE_WITH_ARGO_API_TOKEN` — **replace after deploy** |
+| RBAC | `base/rbac/order-service-argo-submit.yaml` | SA `order-service-argo` may **create** `workflows` in `production` |
+| Placeholder secret | `base/secrets/argo-api-token.yaml` | Applied as `Bearer REPLACE_WITH_ARGO_API_TOKEN` — **replace after deploy** |
 | Mint token | `kubectl create token order-service-argo` | API server issues the JWT |
 | Patch secret | `kubectl patch secret argo-api-token` | Real value: `Bearer <jwt>` |
 | Reload pod | `kubectl rollout restart deployment/order-service` | Pod picks up new `ARGO_TOKEN` |
@@ -202,7 +202,7 @@ If `ARGO_TOKEN` is empty (e.g. local Docker Compose without Argo), submission is
 
 ### 2. Submission: order-service → Argo Server API
 
-`workflow.py` builds a **Workflow** object (same shape as `k8s/argo/workflow-order-placed.yaml`) and POSTs it to:
+`workflow.py` builds a **Workflow** object (same shape as `k8s/base/argo/workflow-order-placed.yaml`) and POSTs it to:
 
 ```text
 https://{ARGO_SERVER}/api/v1/workflows/{ARGO_NAMESPACE}

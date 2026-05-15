@@ -67,7 +67,7 @@ Check images:
 docker images | grep shopwave
 ```
 
-Manifests use `imagePullPolicy: IfNotPresent`, so Minikube will use these local tags.
+Use overlay **`k8s/overlays/local`** so manifests pull local tags (`shopwave-*:latest`) instead of GHCR. See [README.md](README.md#deploy-on-kubernetes) for remote clusters.
 
 ---
 
@@ -103,7 +103,7 @@ kubectl -n argo rollout status deployment/workflow-controller
 Apply manifests (includes `order-service-argo` RBAC):
 
 ```bash
-kubectl apply -k k8s/
+kubectl apply -k k8s/overlays/local
 ```
 
 Create a long-lived token for `order-service` and patch the secret (replaces the placeholder in `secrets/argo-api-token.yaml`). Full explanation: [README.md § Create ARGO_TOKEN](README.md#create-argo_token).
@@ -115,7 +115,7 @@ kubectl -n production patch secret argo-api-token \
 kubectl -n production rollout restart deployment/order-service
 ```
 
-`order-service` must use **`ARGO_SCHEME=http`** (set in `k8s/order-service/deployment.yaml`) because the local Argo server runs without TLS.
+`order-service` must use **`ARGO_SCHEME=http`** (set in `k8s/base/order-service/deployment.yaml`) because the local Argo server runs without TLS.
 
 ---
 
@@ -126,7 +126,7 @@ kubectl -n production rollout restart deployment/order-service
 Re-apply if you changed secrets on disk:
 
 ```bash
-kubectl apply -k k8s/
+kubectl apply -k k8s/overlays/local
 ```
 
 Wait for pods:
@@ -141,7 +141,7 @@ All should reach `Running` (may take 1–2 minutes).
 
 ## 7. Access the app
 
-The browser calls **`/api/orders/*` on the storefront** (same origin). The Next.js server proxies to `ORDER_API_URL` (`http://order-service:8080` in `k8s/shopwave-web/deployment.yaml`) **at request time** — no build-time URL and no extra env patch for the browser.
+The browser calls **`/api/orders/*` on the storefront** (same origin). The Next.js server proxies to `ORDER_API_URL` (`http://order-service:8080` in `k8s/base/shopwave-web/deployment.yaml`) **at request time** — no build-time URL and no extra env patch for the browser.
 
 To change the backend URL after deploy:
 
@@ -235,7 +235,7 @@ See [WORKSHOP.md](../WORKSHOP.md) for vulnerability details and payloads.
 **Reset everything**
 
 ```bash
-kubectl delete -k k8s/ --ignore-not-found
+kubectl delete -k k8s/overlays/local --ignore-not-found
 kubectl delete namespace argo --ignore-not-found
 minikube delete
 ```
@@ -268,9 +268,9 @@ docker build -t shopwave-shopwave-web:latest ./shopwave-web
 
 kubectl create namespace argo
 kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/download/v3.5.12/install.yaml
-# patch argo-server auth-mode (see step 4), create token (step 5), edit k8s/secrets/argo-api-token.yaml
+# patch argo-server auth-mode (see step 4), create token (step 5), edit k8s/base/secrets/argo-api-token.yaml
 
-kubectl apply -k k8s/
+kubectl apply -k k8s/overlays/local
 
 kubectl -n production port-forward svc/shopwave-web 3000:80
 # Optional: direct order API

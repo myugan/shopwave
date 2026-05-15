@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: shopwave-order-service:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/shopwave/shopwave-order-service:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

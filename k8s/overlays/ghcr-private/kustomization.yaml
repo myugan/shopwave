@@ -1,0 +1,23 @@
+# GHCR packages that are private: create a pull secret, then apply this overlay.
+#
+#   kubectl create secret docker-registry ghcr-login \
+#     --docker-server=ghcr.io \
+#     --docker-username=YOUR_GITHUB_USER \
+#     --docker-password=YOUR_PAT \
+#     -n production
+#
+#   kubectl apply -k k8s/overlays/ghcr-private
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../..
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ghcr-login

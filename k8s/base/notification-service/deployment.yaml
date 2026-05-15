@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: notification-service
-          image: shopwave-notification-service:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/shopwave/shopwave-notification-service:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000

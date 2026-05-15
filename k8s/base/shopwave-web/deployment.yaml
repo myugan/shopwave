@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: shopwave-web
-          image: shopwave-shopwave-web:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/shopwave/shopwave-shopwave-web:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000
