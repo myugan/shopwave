@@ -56,15 +56,36 @@ export async function getOrder(orderId: string) {
   return res.json()
 }
 
+function assertNotAuthGateway(text: string): void {
+  if (/redirecting to auth gateway/i.test(text) || /auth gateway/i.test(text)) {
+    throw new Error(
+      'Order API returned an auth-gateway page. Set ORDER_API_URL=http://order-service:8080 on shopwave-web (not your public https URL), and ensure your platform routes :443 to shopwave-web without SSO.'
+    )
+  }
+}
+
 export async function importOrders(yaml: string) {
   const res = await apiFetch(`${ORDER_API}/import`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-yaml' },
     body: yaml,
   })
+  const text = await res.text()
+  assertNotAuthGateway(text)
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(parseApiError(err, 'Import failed'))
+    let message = `Import failed (${res.status})`
+    try {
+      message = parseApiError(JSON.parse(text) as object, message)
+    } catch {
+      if (text.trim()) message = text.slice(0, 300)
+    }
+    throw new Error(message)
   }
-  return res.json()
+  try {
+    return JSON.parse(text) as unknown
+  } catch {
+    throw new Error(
+      'Order service did not return JSON. Check ORDER_API_URL and that you are hitting the storefront proxy.'
+    )
+  }
 }

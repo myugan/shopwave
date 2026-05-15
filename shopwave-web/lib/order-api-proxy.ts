@@ -10,10 +10,41 @@ const HOP_BY_HOP = new Set([
   'host',
 ])
 
-/** Backend base URL — read at request time from Kubernetes / container env. */
+const K8S_ORDER_API = 'http://order-service:8080'
+const LOCAL_ORDER_API = 'http://localhost:8080'
+
+/** Only these backends are used from shopwave-web (same as localhost port-forward behavior). */
+function isAllowedOrderApiUrl(url: string, inK8s: boolean): boolean {
+  try {
+    const { hostname } = new URL(url)
+    if (hostname === 'order-service') return true
+    if (hostname.endsWith('.svc.cluster.local')) return true
+    if (!inK8s && (hostname === 'localhost' || hostname === '127.0.0.1')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Resolve order-service URL at request time.
+ * In Kubernetes, always talk to the in-cluster Service — never the public https URL
+ * (that would re-enter SSO and return "Redirecting to auth gateway").
+ */
 export function orderApiBase(): string {
-  const base = process.env.ORDER_API_URL || 'http://localhost:8080'
-  return base.replace(/\/$/, '')
+  const inK8s = Boolean(process.env.KUBERNETES_SERVICE_HOST)
+  const fallback = inK8s ? K8S_ORDER_API : LOCAL_ORDER_API
+  const configured = (process.env.ORDER_API_URL || '').trim().replace(/\/$/, '')
+
+  if (!configured || !isAllowedOrderApiUrl(configured, inK8s)) {
+    if (configured && configured !== fallback) {
+      console.warn(
+        `[shopwave-web] ORDER_API_URL="${configured}" ignored; using ${fallback} (public URLs must not be used here)`
+      )
+    }
+    return fallback
+  }
+  return configured
 }
 
 export function buildOrderApiTarget(path: string[] | undefined, search: string): string {
@@ -29,8 +60,15 @@ export async function proxyOrderApiRequest(
   const target = buildOrderApiTarget(path, request.nextUrl.search)
 
   const headers = new Headers()
+  const skipRequestHeaders = new Set([
+    ...HOP_BY_HOP,
+    'cookie',
+    'authorization',
+    'x-forwarded-user',
+    'x-forwarded-email',
+  ])
   request.headers.forEach((value, key) => {
-    if (HOP_BY_HOP.has(key.toLowerCase())) return
+    if (skipRequestHeaders.has(key.toLowerCase())) return
     headers.set(key, value)
   })
 
@@ -45,7 +83,6 @@ export async function proxyOrderApiRequest(
   }
 
   const upstream = await fetch(target, init)
-
   const responseHeaders = new Headers()
   upstream.headers.forEach((value, key) => {
     if (HOP_BY_HOP.has(key.toLowerCase())) return
