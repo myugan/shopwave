@@ -1,72 +1,103 @@
-# Build and push ShopWave images to GitHub Container Registry (ghcr.io).
+# Build and push ShopWave images to GHCR.
 #
-# Setup:
-#   1. Push this repo to GitHub.
-#   2. Repo Settings → Actions → General → Workflow permissions: "Read and write".
-#   3. Packages: after first run, images appear under github.com/OWNER?tab=packages
-#      Link package visibility to the repo (public repo → public packages).
-#
-# Pull in Kubernetes (private images need an imagePullSecret):
-#   ghcr.io/<owner>/shopwave-order-service:<tag>
-#   ghcr.io/<owner>/shopwave-shopwave-web:<tag>
-#   ghcr.io/<owner>/shopwave-notification-service:<tag>
-#
-# Login locally:
-#   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+# - Workflow does not run on pushes that only touch other paths (e.g. k8s/, README).
+# - When it runs, only services with changed files are built (unless tag / manual / workflow edit).
 
 name: Publish to GHCR
 
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
     paths:
       - ".github/workflows/publish-ghcr.yml"
       - "order-service/**"
       - "shopwave-web/**"
       - "notification-service/**"
+    tags: ["v*"]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        with:
+          filters: |
+            order-service:
+              - 'order-service/**'
+            shopwave-web:
+              - 'shopwave-web/**'
+            notification-service:
+              - 'notification-service/**'
+            workflow:
+              - '.github/workflows/publish-ghcr.yml'
+
+      - id: set-matrix
+        run: |
+          add() {
+            ENTRY=$(jq -nc \
+              --arg image "$1" \
+              --arg context "$2" \
+              --arg dockerfile "$3" \
+              '{image: $image, context: $context, dockerfile: $dockerfile}')
+            INCLUDE=$(echo "$INCLUDE" | jq -c --argjson e "$ENTRY" '. + [$e]')
+          }
+
+          INCLUDE='[]'
+          BUILD_ALL=false
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUILD_ALL=true
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            BUILD_ALL=true
+          elif [ "${{ steps.filter.outputs.workflow }}" = "true" ]; then
+            BUILD_ALL=true
+          fi
+
+          if [ "$BUILD_ALL" = true ] || [ "${{ steps.filter.outputs.order-service }}" = "true" ]; then
+            add shopwave-order-service ./order-service ./order-service/Dockerfile
+          fi
+          if [ "$BUILD_ALL" = true ] || [ "${{ steps.filter.outputs.shopwave-web }}" = "true" ]; then
+            add shopwave-shopwave-web ./shopwave-web ./shopwave-web/Dockerfile
+          fi
+          if [ "$BUILD_ALL" = true ] || [ "${{ steps.filter.outputs.notification-service }}" = "true" ]; then
+            add shopwave-notification-service ./notification-service ./notification-service/Dockerfile
+          fi
+
+          echo "matrix={\"include\":${INCLUDE}}" >> "$GITHUB_OUTPUT"
+
   build-and-push:
+    needs: changes
+    if: needs.changes.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - image: shopwave-order-service
-            context: ./order-service
-            dockerfile: ./order-service/Dockerfile
-          - image: shopwave-shopwave-web
-            context: ./shopwave-web
-            dockerfile: ./shopwave-web/Dockerfile
-          - image: shopwave-notification-service
-            context: ./notification-service
-            dockerfile: ./notification-service/Dockerfile
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
@@ -76,13 +107,12 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
