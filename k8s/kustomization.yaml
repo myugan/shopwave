@@ -4,15 +4,14 @@ kind: Kustomization
 resources:
   - base
 
-# Replace newName with your GitHub username or org (lowercase), matching GHCR packages from
-# .github/workflows/publish-ghcr.yml — e.g. ghcr.io/myuser/shopwave-order-service
+# Optional: override tag without editing deployments
 images:
-  - name: ghcr.io/shopwave/shopwave-order-service
-    newName: ghcr.io/shopwave/shopwave-order-service
+  - name: ghcr.io/myugan/shopwave-order-service
+    newName: ghcr.io/myugan/shopwave-order-service
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-web
-    newName: ghcr.io/shopwave/shopwave-web
+  - name: ghcr.io/myugan/shopwave-web
+    newName: ghcr.io/myugan/shopwave-web
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-notification-service
-    newName: ghcr.io/shopwave/shopwave-notification-service
+  - name: ghcr.io/myugan/shopwave-notification-service
+    newName: ghcr.io/myugan/shopwave-notification-service
     newTag: latest

@@ -30,22 +30,22 @@ GitHub Actions workflow [`.github/workflows/publish-ghcr.yml`](../.github/workfl
 
 | Image | Example tag |
 |-------|-------------|
-| `ghcr.io/<owner>/shopwave-order-service` | `latest`, branch name, git SHA |
-| `ghcr.io/<owner>/shopwave-web` | same |
-| `ghcr.io/<owner>/shopwave-notification-service` | same |
+| `ghcr.io/myugan/shopwave-order-service` | `latest`, branch name, git SHA |
+| `ghcr.io/myugan/shopwave-web` | same |
+| `ghcr.io/myugan/shopwave-notification-service` | same |
 
 1. Enable **Settings → Actions → Workflow permissions → Read and write**.
 2. Push to `main` or run the workflow manually (**Actions → Publish to GHCR → Run workflow**).
 3. Set **Packages** visibility (public repo → link package to repo for public pulls).
-4. Edit **`k8s/kustomization.yaml`** — set each `images[].newName` to `ghcr.io/YOUR_GITHUB_USER/...` (lowercase).
-5. Deploy: `kubectl apply -k k8s/`
+4. Deploy: `kubectl apply -k k8s/` (images default to `ghcr.io/myugan/...`).
+5. To use another registry owner, edit `images` in `k8s/kustomization.yaml` and deployments under `k8s/base/`.
 6. **Private packages:** `kubectl apply -k k8s/overlays/ghcr-private` after creating secret `ghcr-login` (see overlay file).
 
 ```bash
 echo "$GITHUB_PAT" | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
 ```
 
-Deployments default to `ghcr.io/shopwave/...:latest` with `imagePullPolicy: Always`.
+Deployments default to `ghcr.io/myugan/...:latest` with `imagePullPolicy: Always`.
 
 ## Prerequisites
 
@@ -59,7 +59,6 @@ Deployments default to `ghcr.io/shopwave/...:latest` with `imagePullPolicy: Alwa
 **GHCR:**
 
 ```bash
-# Edit k8s/kustomization.yaml — ghcr.io/shopwave → ghcr.io/YOUR_GITHUB_USER
 kubectl apply -k k8s/
 kubectl -n production get pods
 ```

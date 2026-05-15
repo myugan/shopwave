@@ -11,13 +11,13 @@ resources:
   - ../../base
 
 images:
-  - name: ghcr.io/shopwave/shopwave-order-service
+  - name: ghcr.io/myugan/shopwave-order-service
     newName: shopwave-order-service
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-web
+  - name: ghcr.io/myugan/shopwave-web
     newName: shopwave-web
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-notification-service
+  - name: ghcr.io/myugan/shopwave-notification-service
     newName: shopwave-notification-service
     newTag: latest
 
