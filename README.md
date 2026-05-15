@@ -51,11 +51,19 @@ Manifest layout and RBAC: **[k8s/README.md](k8s/README.md)**
 
 ### Step 1 — Deploy ShopWave
 
+**GHCR** (after images are pushed — edit `k8s/kustomization.yaml` and set `images[].newName` to `ghcr.io/YOUR_GITHUB_USER/...`):
+
 ```bash
 kubectl apply -k k8s/
 ```
 
-This applies apps, RBAC (`order-service-argo`), and the placeholder secret `argo-api-token` (`Bearer REPLACE_WITH_ARGO_API_TOKEN`).
+**Minikube with local builds** (no registry):
+
+```bash
+kubectl apply -k k8s/overlays/local
+```
+
+This applies apps, RBAC (`order-service-argo`), and the placeholder secret `argo-api-token` (`Bearer REPLACE_WITH_ARGO_API_TOKEN`). See [k8s/README.md](k8s/README.md).
 
 Install and configure Argo first if you have not already — see [k8s/MINIKUBE.md §4–5](k8s/MINIKUBE.md#4-install-argo-workflows).
 
@@ -80,7 +88,7 @@ kubectl -n production rollout status deployment/order-service
 
 | Step | Command | Result |
 |------|---------|--------|
-| RBAC (already in repo) | `k8s/rbac/order-service-argo-submit.yaml` | SA `order-service-argo` may **create** workflows in `production` |
+| RBAC (already in repo) | `k8s/base/rbac/order-service-argo-submit.yaml` | SA `order-service-argo` may **create** workflows in `production` |
 | Mint token | `kubectl create token order-service-argo` | JWT bound to that SA |
 | Patch secret | `patch secret argo-api-token` | Key `token` → `Bearer <jwt>` |
 | Inject into pod | `deployment` `secretKeyRef` | Env var `ARGO_TOKEN` for `order-service` |
@@ -147,7 +155,7 @@ shopwave/
 ├── shopwave-web/          # Next.js 14 storefront
 ├── order-service/         # FastAPI + SQLite + Argo workflow client
 ├── notification-service/  # Express webhook receiver
-├── k8s/                   # Kubernetes manifests + Argo reference Workflow
+├── k8s/                   # Kubernetes (GHCR images; overlays/local for Minikube)
 ├── WORKSHOP.md            # Lab: YAML RCE details and exploits
 └── docker-compose.yml
 ```
