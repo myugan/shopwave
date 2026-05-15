@@ -1,7 +1,7 @@
 # Minikube / kind: use images built on the node (no GHCR pull).
 #   eval $(minikube docker-env)
 #   docker build -t shopwave-order-service:latest ./order-service
-#   docker build -t shopwave-shopwave-web:latest ./shopwave-web
+#   docker build -t shopwave-web:latest ./shopwave-web
 #   docker build -t shopwave-notification-service:latest ./notification-service
 #   kubectl apply -k k8s/overlays/local
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -14,8 +14,8 @@ images:
   - name: ghcr.io/shopwave/shopwave-order-service
     newName: shopwave-order-service
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-shopwave-web
-    newName: shopwave-shopwave-web
+  - name: ghcr.io/shopwave/shopwave-web
+    newName: shopwave-web
     newTag: latest
   - name: ghcr.io/shopwave/shopwave-notification-service
     newName: shopwave-notification-service

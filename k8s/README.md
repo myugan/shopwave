@@ -31,7 +31,7 @@ GitHub Actions workflow [`.github/workflows/publish-ghcr.yml`](../.github/workfl
 | Image | Example tag |
 |-------|-------------|
 | `ghcr.io/<owner>/shopwave-order-service` | `latest`, branch name, git SHA |
-| `ghcr.io/<owner>/shopwave-shopwave-web` | same |
+| `ghcr.io/<owner>/shopwave-web` | same |
 | `ghcr.io/<owner>/shopwave-notification-service` | same |
 
 1. Enable **Settings → Actions → Workflow permissions → Read and write**.

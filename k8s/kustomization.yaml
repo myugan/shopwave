@@ -10,8 +10,8 @@ images:
   - name: ghcr.io/shopwave/shopwave-order-service
     newName: ghcr.io/shopwave/shopwave-order-service
     newTag: latest
-  - name: ghcr.io/shopwave/shopwave-shopwave-web
-    newName: ghcr.io/shopwave/shopwave-shopwave-web
+  - name: ghcr.io/shopwave/shopwave-web
+    newName: ghcr.io/shopwave/shopwave-web
     newTag: latest
   - name: ghcr.io/shopwave/shopwave-notification-service
     newName: ghcr.io/shopwave/shopwave-notification-service

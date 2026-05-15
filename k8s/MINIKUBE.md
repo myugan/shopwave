@@ -58,7 +58,7 @@ docker info | grep "Name: minikube"
 ```bash
 docker build -t shopwave-order-service:latest ./order-service
 docker build -t shopwave-notification-service:latest ./notification-service
-docker build -t shopwave-shopwave-web:latest ./shopwave-web
+docker build -t shopwave-web:latest ./shopwave-web
 ```
 
 Check images:
@@ -264,7 +264,7 @@ minikube start --cpus=4 --memory=8192
 eval $(minikube docker-env)
 docker build -t shopwave-order-service:latest ./order-service
 docker build -t shopwave-notification-service:latest ./notification-service
-docker build -t shopwave-shopwave-web:latest ./shopwave-web
+docker build -t shopwave-web:latest ./shopwave-web
 
 kubectl create namespace argo
 kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/download/v3.5.12/install.yaml

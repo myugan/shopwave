@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: shopwave-web
-          image: ghcr.io/shopwave/shopwave-shopwave-web:latest
+          image: ghcr.io/shopwave/shopwave-web:latest
           imagePullPolicy: Always
           ports:
             - name: http
