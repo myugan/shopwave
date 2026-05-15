@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const HOP_BY_HOP = new Set([
+const HOP_BY_HOP_HEADERS = [
   'connection',
   'keep-alive',
   'transfer-encoding',
@@ -8,6 +8,16 @@ const HOP_BY_HOP = new Set([
   'trailer',
   'upgrade',
   'host',
+] as const
+
+const HOP_BY_HOP = new Set<string>(HOP_BY_HOP_HEADERS)
+
+const SKIP_REQUEST_HEADERS = new Set<string>([
+  ...HOP_BY_HOP_HEADERS,
+  'cookie',
+  'authorization',
+  'x-forwarded-user',
+  'x-forwarded-email',
 ])
 
 const K8S_ORDER_API = 'http://order-service:8080'
@@ -60,15 +70,8 @@ export async function proxyOrderApiRequest(
   const target = buildOrderApiTarget(path, request.nextUrl.search)
 
   const headers = new Headers()
-  const skipRequestHeaders = new Set([
-    ...HOP_BY_HOP,
-    'cookie',
-    'authorization',
-    'x-forwarded-user',
-    'x-forwarded-email',
-  ])
   request.headers.forEach((value, key) => {
-    if (skipRequestHeaders.has(key.toLowerCase())) return
+    if (SKIP_REQUEST_HEADERS.has(key.toLowerCase())) return
     headers.set(key, value)
   })
 
