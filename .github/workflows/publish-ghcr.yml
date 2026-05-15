@@ -67,7 +67,7 @@ jobs:
             add shopwave-order-service ./order-service ./order-service/Dockerfile
           fi
           if [ "$BUILD_ALL" = true ] || [ "${{ steps.filter.outputs.shopwave-web }}" = "true" ]; then
-            add shopwave-shopwave-web ./shopwave-web ./shopwave-web/Dockerfile
+            add shopwave-web ./shopwave-web ./shopwave-web/Dockerfile
           fi
           if [ "$BUILD_ALL" = true ] || [ "${{ steps.filter.outputs.notification-service }}" = "true" ]; then
             add shopwave-notification-service ./notification-service ./notification-service/Dockerfile
