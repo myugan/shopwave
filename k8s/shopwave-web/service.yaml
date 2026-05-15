@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shopwave-web
+  namespace: production
+  labels:
+    app.kubernetes.io/name: shopwave-web
+    app.kubernetes.io/part-of: shopwave
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: shopwave-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

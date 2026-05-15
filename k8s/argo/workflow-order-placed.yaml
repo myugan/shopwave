@@ -1,0 +1,84 @@
+# Reference Workflow — mirrors the JSON submitted by order-service/workflow.py.
+# Normally created via POST to Argo Server; apply this only for debugging or demos.
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: order-placed-
+  namespace: production
+  labels:
+    app: order-service
+    order-id: "00000000-0000-0000-0000-000000000000"
+spec:
+  serviceAccountName: argo-workflow-sa
+  entrypoint: order-steps
+  arguments:
+    parameters:
+      - name: order-id
+        value: "00000000-0000-0000-0000-000000000000"
+      - name: customer-id
+        value: customer@example.com
+      - name: total
+        value: "129.99"
+  templates:
+    - name: order-steps
+      steps:
+        - - name: validate-stock
+            template: validate-stock-tmpl
+            arguments:
+              parameters:
+                - name: order-id
+                  value: "{{workflow.parameters.order-id}}"
+        - - name: charge-payment
+            template: charge-payment-tmpl
+            arguments:
+              parameters:
+                - name: total
+                  value: "{{workflow.parameters.total}}"
+        - - name: send-invoice
+            template: send-invoice-tmpl
+            arguments:
+              parameters:
+                - name: order-id
+                  value: "{{workflow.parameters.order-id}}"
+                - name: customer-id
+                  value: "{{workflow.parameters.customer-id}}"
+    - name: validate-stock-tmpl
+      inputs:
+        parameters:
+          - name: order-id
+      container:
+        image: busybox
+        command: [sh, -c]
+        args:
+          - echo 'Validating stock for order {{inputs.parameters.order-id}}'; sleep 2; echo OK
+    - name: charge-payment-tmpl
+      inputs:
+        parameters:
+          - name: total
+      container:
+        image: busybox
+        command: [sh, -c]
+        args:
+          - echo 'Charging ${{inputs.parameters.total}}'; sleep 2; echo OK
+    - name: send-invoice-tmpl
+      inputs:
+        parameters:
+          - name: order-id
+          - name: customer-id
+      container:
+        image: busybox
+        command: [sh, -c]
+        args:
+          - >-
+            SENDGRID_KEY=$(cat /var/run/secrets/sendgrid/SENDGRID_KEY 2>/dev/null || echo 'not-mounted');
+            echo "Sending invoice for order {{inputs.parameters.order-id}} to customer {{inputs.parameters.customer-id}}";
+            echo "Using SendGrid key: ${SENDGRID_KEY:0:10}...";
+            sleep 2; echo OK
+        volumeMounts:
+          - name: sendgrid-secret
+            mountPath: /var/run/secrets/sendgrid
+            readOnly: true
+  volumes:
+    - name: sendgrid-secret
+      secret:
+        secretName: sendgrid-api-key

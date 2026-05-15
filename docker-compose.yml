@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  order-service:
+    build: ./order-service
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_PATH=/data/orders.db
+      - ARGO_TOKEN=
+    volumes:
+      - order-data:/data
+
+  shopwave-web:
+    build: ./shopwave-web
+    ports:
+      - "3000:3000"
+    environment:
+      - ORDER_API_URL=http://order-service:8080
+    depends_on:
+      - order-service
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "3001:3000"
+
+volumes:
+  order-data:

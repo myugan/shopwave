@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: production
+
+resources:
+  - namespace.yaml
+  - secrets/sendgrid-api-key.yaml
+  - secrets/argo-api-token.yaml
+  - rbac/argo-workflow-sa.yaml
+  - rbac/order-service-argo-submit.yaml
+  - order-service/pvc.yaml
+  - order-service/deployment.yaml
+  - order-service/service.yaml
+  - shopwave-web/deployment.yaml
+  - shopwave-web/service.yaml
+  - notification-service/deployment.yaml
+  - notification-service/service.yaml
+  - argo/workflow-webhook-configmap.yaml
+
+# workflow-order-placed.yaml is reference-only; do not apply unless Argo CRDs are installed:
+# - argo/workflow-order-placed.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: shopwave
+    includeSelectors: false

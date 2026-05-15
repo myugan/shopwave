@@ -1,0 +1,19 @@
+# Optional: configure Argo Workflows to POST completion events to notification-service.
+# Exact wiring depends on your Argo Workflows version (Workflow defaults, EventBus, or HTTP template).
+# Lab instructors can point workflow exit handlers at:
+#   http://notification-service.production.svc.cluster.local:3000/webhook/workflow-complete
+#
+# notification-service expects a JSON body shaped like an Argo Workflow status object:
+#   metadata.name, metadata.labels["order-id"], status.phase
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shopwave-argo-notes
+  namespace: production
+  labels:
+    app.kubernetes.io/part-of: shopwave
+data:
+  webhook-url: "http://notification-service.production.svc.cluster.local:3000/webhook/workflow-complete"
+  readme: |
+    Configure your Argo controller or per-workflow onExit handler to POST workflow
+    status to the URL above. See k8s/README.md for the end-to-end flow.

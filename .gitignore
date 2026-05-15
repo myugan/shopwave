@@ -1,0 +1,55 @@
+# Workshop exploit guide (local / instructor copy only)
+WORKSHOP.md
+workshop.md
+
+# Dependencies
+node_modules/
+shopwave-web/node_modules/
+notification-service/node_modules/
+
+# Next.js
+shopwave-web/.next/
+shopwave-web/out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Data / databases
+*.db
+*.sqlite
+*.sqlite3
+order-service/orders.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs and build artifacts
+*.log
+npm-debug.log*
+dist/
+build/
+coverage/
+
+# Docker (optional local overrides)
+docker-compose.override.yml

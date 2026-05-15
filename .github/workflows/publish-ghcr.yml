@@ -1,0 +1,88 @@
+# Build and push ShopWave images to GitHub Container Registry (ghcr.io).
+#
+# Setup:
+#   1. Push this repo to GitHub.
+#   2. Repo Settings → Actions → General → Workflow permissions: "Read and write".
+#   3. Packages: after first run, images appear under github.com/OWNER?tab=packages
+#      Link package visibility to the repo (public repo → public packages).
+#
+# Pull in Kubernetes (private images need an imagePullSecret):
+#   ghcr.io/<owner>/shopwave-order-service:<tag>
+#   ghcr.io/<owner>/shopwave-shopwave-web:<tag>
+#   ghcr.io/<owner>/shopwave-notification-service:<tag>
+#
+# Login locally:
+#   echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USER --password-stdin
+
+name: Publish to GHCR
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+    paths:
+      - ".github/workflows/publish-ghcr.yml"
+      - "order-service/**"
+      - "shopwave-web/**"
+      - "notification-service/**"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: shopwave-order-service
+            context: ./order-service
+            dockerfile: ./order-service/Dockerfile
+          - image: shopwave-shopwave-web
+            context: ./shopwave-web
+            dockerfile: ./shopwave-web/Dockerfile
+          - image: shopwave-notification-service
+            context: ./notification-service
+            dockerfile: ./notification-service/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
