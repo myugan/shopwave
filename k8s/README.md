@@ -70,6 +70,15 @@ kubectl apply -k k8s/overlays/local
 kubectl -n production get pods
 ```
 
+**Public URL (HTTPS :443 → shopwave-web):** Route :443 to the `shopwave-web` Service. Exploit paths match localhost:
+
+- `POST https://your-domain/api/orders/import` (same as `http://localhost:3000/api/orders/import`)
+- UI: `https://your-domain/orders/import`
+
+`shopwave-web` **always** calls `http://order-service:8080` inside the cluster (even if `ORDER_API_URL` was wrongly set to your public `https://` URL). No cookies or login are required by the app.
+
+If you still see **`Redirecting to auth gateway`**, your **platform** is intercepting the request before it reaches `shopwave-web` — disable SSO on that route.
+
 Port-forward for local access:
 
 ```bash

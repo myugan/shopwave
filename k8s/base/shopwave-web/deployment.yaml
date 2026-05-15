@@ -25,7 +25,7 @@ spec:
             - name: http
               containerPort: 3000
           env:
-            # Read at request time by /api/orders/* route handlers (not at image build).
+            # In-cluster only — never the public https URL (that re-hits SSO and breaks /api/orders/*).
             - name: ORDER_API_URL
               value: "http://order-service:8080"
             - name: PORT

